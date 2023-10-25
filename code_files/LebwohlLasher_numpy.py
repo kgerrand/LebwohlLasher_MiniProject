@@ -155,23 +155,21 @@ def one_energy(arr,ix,iy,nmax):
 	Returns:
 	  en (float) = reduced energy of cell.
     """
-    en = 0.0
     ixp = (ix+1)%nmax # These are the coordinates
     ixm = (ix-1)%nmax # of the neighbours
     iyp = (iy+1)%nmax # with wraparound
     iym = (iy-1)%nmax #
-#
-# Add together the 4 neighbour contributions
-# to the energy
-#
-    ang = arr[ix,iy]-arr[ixp,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    ang = arr[ix,iy]-arr[ixm,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    ang = arr[ix,iy]-arr[ix,iyp]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    ang = arr[ix,iy]-arr[ix,iym]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+
+    # calculting the different angles in one line
+    all_ang = arr[ix, iy] - np.array([arr[ixp, iy], arr[ixm, iy], arr[ix, iyp], arr[ix, iym]])
+
+
+    # calculating the total contributions of the 4 neighbours
+    en_contributions = 0.5*(1.0-3.0*np.cos(all_ang)**2)
+
+    # adding total contributions to energy
+    en = en_contributions.sum()
+    
     return en
 #=======================================================================
 def all_energy(arr,nmax):
@@ -185,10 +183,15 @@ def all_energy(arr,nmax):
 	Returns:
 	  enall (float) = reduced energy of lattice.
     """
-    enall = 0.0
-    for i in range(nmax):
-        for j in range(nmax):
-            enall += one_energy(arr,i,j,nmax)
+    # creating a coordinate grids for ix and iy
+    ix, iy = np.meshgrid(np.arange(nmax), np.arange(nmax), indexing='ij')
+
+    # calculating energy contributions for all cells using numpy vectorisation
+    en_contributions = one_energy(arr, ix, iy, nmax)
+        
+    # summing up each cell's contribution to get the total energy
+    enall = en_contributions.sum()
+
     return enall
 #=======================================================================
 def get_order(arr,nmax):
