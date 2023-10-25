@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import os
 import glob
-from LebwohlLasher import initdat, savedat, one_energy, all_energy, get_order, MC_step
+from ..code_files.LebwohlLasher import initdat, savedat, one_energy, all_energy, get_order, MC_step
 
 def test_initdat():
     # testing using an arbitrary side length of 10
