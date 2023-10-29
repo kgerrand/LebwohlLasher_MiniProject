@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import os
 import glob
-from ..code_files.LebwohlLasher import initdat, savedat, one_energy, all_energy, get_order, MC_step
+from ..code_files.LebwohlLasher_numba_parallel import initdat, savedat, one_energy, all_energy, get_order, MC_step
 
 def test_initdat():
     # testing using an arbitrary side length of 10
@@ -85,6 +85,9 @@ def test_MC_step():
     np.random.seed(42)
     arr = np.random.random_sample((nmax, nmax))*2.0*np.pi
     Ts = 0.5
+    #scale = (0.1+Ts)
+
+    #aran = np.random.normal(scale=scale, size=(nmax,nmax))
 
     # testing function output against calculated true value
     MC = MC_step(arr, Ts, nmax)
