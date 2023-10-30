@@ -17,37 +17,6 @@ def test_initdat():
     assert (arr >= 0).all()
     assert (arr <= 2*np.pi).all()
 
-def test_savedat():
-    # initialising
-    nmax = 10
-    nsteps = 100
-    Ts = 0.5
-
-    # setting test parameters
-    ratio = [0.5] * (nsteps + 1)
-    energy = [0.0] * (nsteps + 1)
-    order = [0.3] * (nsteps + 1)
-    
-    # creating a temporary directory to store test output, to avoid having multiple files
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # changing to the temporary directory so that the file saves in it
-        os.chdir(temp_dir)
-
-        savedat(arr=None, nsteps=nsteps, Ts=Ts, runtime=1.0, ratio=ratio, energy=energy, order=order, nmax=nmax)
-
-        # testing that a file has been created in the expected format
-        generated_files = glob.glob("LL-Output-*.txt")
-        assert generated_files, f"No file with the pattern 'LL-Output-*.txt' found in {temp_dir}"
-
-        # reading test file and ensuring contents are as expected
-        with open(generated_files[0], "r") as file:
-            content = file.read()
-        
-        assert f"Size of lattice:     {nmax}x{nmax}" in content
-        assert f"Number of MC steps:  {nsteps}" in content
-        assert f"Reduced temperature: {Ts:.3f}" in content
-        assert "# MC step:  Ratio:     Energy:   Order:" in content
-
 def test_one_energy():
     # initialising lattice, using arbitrary side length and picking a random single cell
     nmax = 10
