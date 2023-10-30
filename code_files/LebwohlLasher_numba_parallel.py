@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from numba import jit
+from numba import jit, prange
 
 #=======================================================================
 @jit(nopython=True, cache=True, parallel=True)
@@ -179,8 +179,8 @@ def all_energy(arr,nmax):
 	  enall (float) = reduced energy of lattice.
     """
     enall = 0.0
-    for i in range(nmax):
-        for j in range(nmax):
+    for i in prange(nmax):
+        for j in prange(nmax):
             enall += one_energy(arr,i,j,nmax)
     return enall
 #=======================================================================
@@ -204,10 +204,10 @@ def get_order(arr,nmax):
     # put it in a (3,i,j) array.
     #
     lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
-    for a in range(3):
-        for b in range(3):
-            for i in range(nmax):
-                for j in range(nmax):
+    for a in prange(3):
+        for b in prange(3):
+            for i in prange(nmax):
+                for j in prange(nmax):
                     Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
     Qab = Qab/(2*nmax*nmax)
     eigenvalues,eigenvectors = np.linalg.eig(Qab)
@@ -243,15 +243,15 @@ def MC_step(arr,Ts,nmax):
     yran = np.empty((nmax, nmax), dtype=np.int32)
     aran = np.empty((nmax, nmax), dtype=np.float64)
     
-    for i in range(nmax):
-        for j in range(nmax):
+    for i in prange(nmax):
+        for j in prange(nmax):
             xran[i, j] = np.random.randint(0, nmax)
             yran[i, j] = np.random.randint(0, nmax)
             aran[i, j] = np.random.randn() * scale
 
 
-    for i in range(nmax):
-        for j in range(nmax):
+    for i in prange(nmax):
+        for j in prange(nmax):
             ix = xran[i,j]
             iy = yran[i,j]
             ang = aran[i,j]
@@ -299,7 +299,7 @@ def main(program, nsteps, nmax, temp, pflag):
 
     # Begin doing and timing some MC steps.
     initial = time.time()
-    for it in range(1,nsteps+1):
+    for it in prange(1,nsteps+1):
         ratio[it] = MC_step(lattice,temp,nmax)
         energy[it] = all_energy(lattice,nmax)
         order[it] = get_order(lattice,nmax)
