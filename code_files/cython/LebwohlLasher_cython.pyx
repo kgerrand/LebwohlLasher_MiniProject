@@ -1,25 +1,6 @@
 """
-Basic Python Lebwohl-Lasher code.  Based on the paper 
-P.A. Lebwohl and G. Lasher, Phys. Rev. A, 6, 426-429 (1972).
-This version in 2D.
+Cythonised version of basic Python Lebwohl-Lasher code.
 
-Run at the command line by typing:
-
-python LebwohlLasher.py <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>
-
-where:
-  ITERATIONS = number of Monte Carlo steps, where 1MCS is when each cell
-      has attempted a change once on average (i.e. SIZE*SIZE attempts)
-  SIZE = side length of square lattice
-  TEMPERATURE = reduced temperature in range 0.0 - 2.0.
-  PLOTFLAG = 0 for no plot, 1 for energy plot and 2 for angle plot.
-  
-The initial configuration is set at random. The boundaries
-are periodic throughout the simulation.  During the
-time-stepping, an array containing two domains is used; these
-domains alternate between old data and new data.
-
-SH 16-Oct-23
 """
 
 import sys
@@ -29,11 +10,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+# cython imports
 cimport cython
 cimport numpy as np
+from libc.math cimport sin, cos, pi, exp
 
 #=======================================================================
-cdef initdat(int nmax):
+# cythonised function
+cdef np.ndarray initdat(int nmax):
     """
     Arguments:
       nmax (int) = size of lattice to create (nmax,nmax).
@@ -44,7 +28,7 @@ cdef initdat(int nmax):
 	Returns:
 	  arr (float(nmax,nmax)) = array to hold lattice.
     """
-    cdef np.ndarray[double, ndim=2] arr = np.random.random_sample((nmax,nmax))*2.0*np.pi
+    cdef np.ndarray[double, ndim=2] arr = np.random.random_sample((nmax,nmax))*2.0*pi
     return arr
 #=======================================================================
 def plotdat(arr,pflag,nmax):
@@ -68,21 +52,21 @@ def plotdat(arr,pflag,nmax):
     """
     if pflag==0:
         return
-    u = np.cos(arr)
-    v = np.sin(arr)
+    u = cos(arr)
+    v = sin(arr)
     x = np.arange(nmax)
     y = np.arange(nmax)
     cols = np.zeros((nmax,nmax))
-    if pflag==1: # colour the arrows according to energy
+    if pflag==1:
         mpl.rc('image', cmap='rainbow')
         for i in range(nmax):
             for j in range(nmax):
                 cols[i,j] = one_energy(arr,i,j,nmax)
         norm = plt.Normalize(cols.min(), cols.max())
-    elif pflag==2: # colour the arrows according to angle
+    elif pflag==2:
         mpl.rc('image', cmap='hsv')
-        cols = arr%np.pi
-        norm = plt.Normalize(vmin=0, vmax=np.pi)
+        cols = arr%pi
+        norm = plt.Normalize(vmin=0, vmax=pi)
     else:
         mpl.rc('image', cmap='gist_gray')
         cols = np.zeros_like(arr)
@@ -94,47 +78,31 @@ def plotdat(arr,pflag,nmax):
     ax.set_aspect('equal')
     plt.show()
 #=======================================================================
-# commenting out this function as won't compile
-'''
-def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
-    """
-    Arguments:
-	  arr (float(nmax,nmax)) = array that contains lattice data;
-	  nsteps (int) = number of Monte Carlo steps (MCS) performed;
-	  Ts (float) = reduced temperature (range 0 to 2);
-	  ratio (float(nsteps)) = array of acceptance ratios per MCS;
-	  energy (float(nsteps)) = array of reduced energies per MCS;
-	  order (float(nsteps)) = array of order parameters per MCS;
-      nmax (int) = side length of square lattice to simulated.
-    Description:
-      Function to save the energy, order and acceptance ratio
-      per Monte Carlo step to text file.  Also saves run data in the
-      header.  Filenames are generated automatically based on
-      date and time at beginning of execution.
-	Returns:
-	  NULL
-    """
-    # Create filename based on current date and time.
+# cythonised function
+cdef savedat(double[:, ::1] arr, int nsteps, double Ts, double[:] ratio, double[:] energy, double[:] order, int nmax):
     current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
-    filename = "LL-Output-{:s}.txt".format(current_datetime)
-    FileOut = open(filename,"w")
-    # Write a header with run parameters
-    print("#=====================================================",file=FileOut)
-    print("# File created:        {:s}".format(current_datetime),file=FileOut)
-    print("# Size of lattice:     {:d}x{:d}".format(nmax,nmax),file=FileOut)
-    print("# Number of MC steps:  {:d}".format(nsteps),file=FileOut)
-    print("# Reduced temperature: {:5.3f}".format(Ts),file=FileOut)
-    print("# Run time (s):        {:8.6f}".format(runtime),file=FileOut)
-    print("#=====================================================",file=FileOut)
-    print("# MC step:  Ratio:     Energy:   Order:",file=FileOut)
-    print("#=====================================================",file=FileOut)
-    # Write the columns of data
-    for i in range(nsteps+1):
-        print("   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i,ratio[i],energy[i],order[i]),file=FileOut)
-    FileOut.close()
-'''
+    filename = "/user/home/zj20898/Year4/LebwohlLasher_MiniProject/LL-Output-{:s}.txt".format(current_datetime).encode('utf-8')
+    
+    cdef float runtime = 0.0
+    cdef int i
+
+    with open(filename, "wb") as FileOut:
+        FileOut.write("#=====================================================\n".encode('utf-8'))
+        FileOut.write("# File created:        {:s}\n".format(current_datetime).encode('utf-8'))
+        FileOut.write("# Size of lattice:     {:d}x{:d}\n".format(nmax, nmax).encode('utf-8'))
+        FileOut.write("# Number of MC steps:  {:d}\n".format(nsteps).encode('utf-8'))
+        FileOut.write("# Reduced temperature: {:5.3f}\n".format(Ts).encode('utf-8'))
+        FileOut.write("# Run time (s):        {:8.6f}\n".format(runtime).encode('utf-8'))
+        FileOut.write("#=====================================================\n".encode('utf-8'))
+        FileOut.write("# MC step:  Ratio:     Energy:   Order:\n".encode('utf-8'))
+        FileOut.write("#=====================================================\n".encode('utf-8'))
+        
+        for i in range(nsteps + 1):
+            FileOut.write("\n   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i, ratio[i], energy[i], order[i]).encode('utf-8'))
+
 #=======================================================================
-def one_energy(arr,ix,iy,nmax):
+# cythonised function
+cdef float one_energy(np.ndarray[double, ndim=2] arr, int ix, int iy, int nmax):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
@@ -149,26 +117,24 @@ def one_energy(arr,ix,iy,nmax):
 	Returns:
 	  en (float) = reduced energy of cell.
     """
-    en = 0.0
-    ixp = (ix+1)%nmax # These are the coordinates
-    ixm = (ix-1)%nmax # of the neighbours
-    iyp = (iy+1)%nmax # with wraparound
-    iym = (iy-1)%nmax #
-#
-# Add together the 4 neighbour contributions
-# to the energy
-#
-    ang = arr[ix,iy]-arr[ixp,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    cdef float en = 0.0
+    cdef int ixp = (ix+1)%nmax 
+    cdef int ixm = (ix-1)%nmax 
+    cdef int iyp = (iy+1)%nmax 
+    cdef int iym = (iy-1)%nmax 
+
+    cdef float ang = arr[ix,iy]-arr[ixp,iy]
+    en += 0.5*(1.0 - 3.0*cos(ang)**2)
     ang = arr[ix,iy]-arr[ixm,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    en += 0.5*(1.0 - 3.0*cos(ang)**2)
     ang = arr[ix,iy]-arr[ix,iyp]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    en += 0.5*(1.0 - 3.0*cos(ang)**2)
     ang = arr[ix,iy]-arr[ix,iym]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    en += 0.5*(1.0 - 3.0*cos(ang)**2)
     return en
 #=======================================================================
-def all_energy(arr,nmax):
+# cythonised function
+cdef float all_energy(np.ndarray[double, ndim=2] arr, int nmax):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
@@ -179,13 +145,16 @@ def all_energy(arr,nmax):
 	Returns:
 	  enall (float) = reduced energy of lattice.
     """
-    enall = 0.0
+    cdef float enall = 0.0
+    cdef int i,j
+
     for i in range(nmax):
         for j in range(nmax):
             enall += one_energy(arr,i,j,nmax)
     return enall
 #=======================================================================
-def get_order(arr,nmax):
+# cythonised function
+cdef float get_order(np.ndarray[double, ndim=2] arr,int nmax):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
@@ -197,23 +166,28 @@ def get_order(arr,nmax):
 	Returns:
 	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
     """
-    Qab = np.zeros((3,3))
-    delta = np.eye(3,3)
-    #
-    # Generate a 3D unit vector for each cell (i,j) and
-    # put it in a (3,i,j) array.
-    #
+    cdef int a, b, i, j
+
+    cdef double[:,:] Qab = np.zeros((3, 3), dtype=np.float64)
+    cdef double[:,:] delta = np.eye(3, dtype=np.float64)
+    cdef double[:,:,:] lab = np.empty((3, nmax, nmax), dtype=np.float64)
+    cdef double[:] eigenvalues
+    cdef float scalar = (2.0*nmax*nmax)
+
     lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
     for a in range(3):
         for b in range(3):
             for i in range(nmax):
                 for j in range(nmax):
-                    Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-    Qab = Qab/(2*nmax*nmax)
-    eigenvalues,eigenvectors = np.linalg.eig(Qab)
-    return eigenvalues.max()
+                    Qab[a,b] += 3.0*lab[a,i,j]*lab[b,i,j] - delta[a,b]
+            Qab[a,b] /= scalar
+
+    eigenvalues = np.linalg.eigvals(Qab)
+
+    return np.max(eigenvalues)
 #=======================================================================
-def MC_step(arr,Ts,nmax):
+# cythonised function
+cdef float MC_step(np.ndarray[double, ndim=2] arr, double Ts,int nmax):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
@@ -229,16 +203,16 @@ def MC_step(arr,Ts,nmax):
 	Returns:
 	  accept/(nmax**2) (float) = acceptance ratio for current MCS.
     """
-    #
-    # Pre-compute some random numbers.  This is faster than
-    # using lots of individual calls.  "scale" sets the width
-    # of the distribution for the angle changes - increases
-    # with temperature.
-    scale=0.1+Ts
-    accept = 0
-    xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    aran = np.random.normal(scale=scale, size=(nmax,nmax))
+    cdef float scale = 0.1+Ts
+    cdef float accept = 0.0
+
+    cdef int[:, :] xran = np.random.randint(0,high=nmax, size=(nmax,nmax), dtype=np.int32)
+    cdef int[:, :] yran = np.random.randint(0,high=nmax, size=(nmax,nmax), dtype=np.int32)
+    cdef double[:, :]aran = np.random.normal(scale=scale, size=(nmax,nmax))
+
+    cdef int i, j, ix, iy
+    cdef float ang, en0, en1, boltz, rand_num
+
     for i in range(nmax):
         for j in range(nmax):
             ix = xran[i,j]
@@ -250,17 +224,17 @@ def MC_step(arr,Ts,nmax):
             if en1<=en0:
                 accept += 1
             else:
-            # Now apply the Monte Carlo test - compare
-            # exp( -(E_new - E_old) / T* ) >= rand(0,1)
-                boltz = np.exp( -(en1 - en0) / Ts )
+                boltz = exp( -(en1 - en0) / Ts )#
+                rand_num = np.random.uniform(0.0, 1.0)
 
-                if boltz >= np.random.uniform(0.0,1.0):
+                if boltz >= rand_num:
                     accept += 1
                 else:
                     arr[ix,iy] -= ang
+
     return accept/(nmax*nmax)
 #=======================================================================
-def main(program, nsteps, nmax, temp, pflag):
+def main(program, int nsteps, int nmax, double temp, int pflag):
     """
     Arguments:
 	  program (string) = the name of the program;
@@ -273,20 +247,17 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
-    # Create and initialise lattice
     lattice = initdat(nmax)
-    # Plot initial frame of lattice
     plotdat(lattice,pflag,nmax)
-    # Create arrays to store energy, acceptance ratio and order parameter
-    energy = np.zeros(nsteps+1,dtype=np.dtype)
-    ratio = np.zeros(nsteps+1,dtype=np.dtype)
-    order = np.zeros(nsteps+1,dtype=np.dtype)
-    # Set initial values in arrays
+
+    energy = np.zeros(nsteps+1)
+    ratio = np.zeros(nsteps+1)
+    order = np.zeros(nsteps+1)
+
     energy[0] = all_energy(lattice,nmax)
     ratio[0] = 0.5 # ideal value
     order[0] = get_order(lattice,nmax)
 
-    # Begin doing and timing some MC steps.
     initial = time.time()
     for it in range(1,nsteps+1):
         ratio[it] = MC_step(lattice,temp,nmax)
@@ -295,10 +266,8 @@ def main(program, nsteps, nmax, temp, pflag):
     final = time.time()
     runtime = final-initial
     
-    # Final outputs
     print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,order[nsteps-1],runtime))
-    # Plot final frame of lattice and generate output file
-    #savedat(lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
+    savedat(lattice,nsteps,temp,ratio,energy,order,nmax)
     plotdat(lattice,pflag,nmax)
 #=======================================================================
 # Main part of program, getting command line arguments and calling
