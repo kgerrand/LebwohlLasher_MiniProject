@@ -72,7 +72,7 @@ def plotdat(arr,pflag,nmax):
     y = np.arange(nmax)
     cols = np.zeros((nmax,nmax))
 
-    if pflag==1: # colour the arrows according to energy
+    if pflag==1:
         mpl.rc('image', cmap='rainbow')
 
         # removing loop
@@ -80,7 +80,7 @@ def plotdat(arr,pflag,nmax):
         cols = one_energy(arr, i, j, nmax)
         norm = plt.Normalize(cols.min(), cols.max())
 
-    elif pflag==2: # colour the arrows according to angle
+    elif pflag==2:
         mpl.rc('image', cmap='hsv')
         cols = arr%np.pi
         norm = plt.Normalize(vmin=0, vmax=np.pi)
@@ -114,12 +114,10 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
 	Returns:
 	  NULL
     """
-    # Create filename based on current date and time.
     current_datetime = datetime.datetime.now().strftime("%a-%d-%b-%Y-at-%I-%M-%S%p")
     filename = "LL-Output-{:s}.txt".format(current_datetime)
     FileOut = open(filename,"w")
 
-    # Write a header with run parameters
     header = [
         "#=====================================================",
         "# File created:        {:s}".format(current_datetime),
@@ -135,7 +133,6 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
     data = np.column_stack((np.arange(nsteps + 1), ratio, energy, order))
     formatted_data = [f"{i:5f} {r:6.4f} {e:12.4f} {o:6.4f}" for i, r, e, o in data]
 
-    # writing data to file in this way avoids the use of loop
     with open(filename, "w") as Fileout:
         Fileout.write("\n".join(header+formatted_data))
 
@@ -155,14 +152,13 @@ def one_energy(arr,ix,iy,nmax):
 	Returns:
 	  en (float) = reduced energy of cell.
     """
-    ixp = (ix+1)%nmax # These are the coordinates
-    ixm = (ix-1)%nmax # of the neighbours
-    iyp = (iy+1)%nmax # with wraparound
-    iym = (iy-1)%nmax #
+    ixp = (ix+1)%nmax 
+    ixm = (ix-1)%nmax
+    iyp = (iy+1)%nmax 
+    iym = (iy-1)%nmax 
 
     # calculting the different angles in one line
     all_ang = arr[ix, iy] - np.array([arr[ixp, iy], arr[ixm, iy], arr[ix, iyp], arr[ix, iym]])
-
 
     # calculating the total contributions of the 4 neighbours
     en_contributions = 0.5*(1.0-3.0*np.cos(all_ang)**2)
@@ -205,22 +201,23 @@ def get_order(arr,nmax):
       project notes.  Function returns S_lattice = max(eigenvalues(Q_ab)).
 	Returns:
 	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
-    """
+    """ 
     Qab = np.zeros((3,3))
     delta = np.eye(3,3)
-    #
-    # Generate a 3D unit vector for each cell (i,j) and
-    # put it in a (3,i,j) array.
-    #
+
     lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
-    for a in range(3):
-        for b in range(3):
-            for i in range(nmax):
-                for j in range(nmax):
-                    Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-    Qab = Qab/(2*nmax*nmax)
-    eigenvalues,eigenvectors = np.linalg.eig(Qab)
-    return eigenvalues.max()
+
+    # computing components of Qab in one line, using element-wise multiplication
+    Qab = np.einsum('aij,bij->ab', lab, lab)
+    # adding regularisation term to improve numerical stability
+    Qab -= 1e-5*delta
+
+    Qab /= (2 * nmax * nmax)
+
+    eigenvalues = np.linalg.eigvals(Qab)
+
+    return np.max(eigenvalues).real
+
 #=======================================================================
 def MC_step(arr,Ts,nmax):
     """
@@ -243,31 +240,38 @@ def MC_step(arr,Ts,nmax):
     # using lots of individual calls.  "scale" sets the width
     # of the distribution for the angle changes - increases
     # with temperature.
-    scale=0.1+Ts
-    accept = 0
-    xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    aran = np.random.normal(scale=scale, size=(nmax,nmax))
+    scale = 0.1 + Ts
+
+    xran = np.random.randint(0, high=nmax, size=(nmax, nmax))
+    yran = np.random.randint(0, high=nmax, size=(nmax, nmax))
+    aran = np.random.normal(scale=scale, size=(nmax, nmax))
+
+    acceptances = np.zeros((nmax, nmax), dtype=bool)
+
     for i in range(nmax):
         for j in range(nmax):
-            ix = xran[i,j]
-            iy = yran[i,j]
-            ang = aran[i,j]
-            en0 = one_energy(arr,ix,iy,nmax)
-            arr[ix,iy] += ang
-            en1 = one_energy(arr,ix,iy,nmax)
-            if en1<=en0:
-                accept += 1
-            else:
-            # Now apply the Monte Carlo test - compare
-            # exp( -(E_new - E_old) / T* ) >= rand(0,1)
-                boltz = np.exp( -(en1 - en0) / Ts )
+            ix = xran[i, j]
+            iy = yran[i, j]
+            ang = aran[i, j]
+            en0 = one_energy(arr, ix, iy, nmax)
+           
+            arr_proposed = arr.copy()
+            arr_proposed[ix, iy] += ang
 
-                if boltz >= np.random.uniform(0.0,1.0):
-                    accept += 1
-                else:
-                    arr[ix,iy] -= ang
-    return accept/(nmax*nmax)
+            en1 = one_energy(arr_proposed, ix, iy, nmax)
+
+            mask_accept = en1 <= en0
+            boltz = np.exp(-(en1 - en0) / Ts)
+            random_number = np.random.uniform(0, 1)
+
+            acceptances[i, j] = mask_accept or (boltz >= random_number)
+
+            if acceptances[i, j]:
+                arr[ix, iy] = arr_proposed[ix, iy]
+
+    acceptance_ratio = np.sum(acceptances) / (nmax * nmax)
+
+    return acceptance_ratio
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
