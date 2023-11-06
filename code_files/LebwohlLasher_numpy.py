@@ -1,8 +1,7 @@
 """
-Accelerated version of basic Python Lebwohl-Lasher code using NumPy vectorisation.
+NumPy vectorised version of basic Python Lebwohl-Lasher code.
 
 """
-
 import sys
 import time
 import datetime
@@ -267,20 +266,18 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
-    # Create and initialise lattice
     lattice = initdat(nmax)
-    # Plot initial frame of lattice
+
     plotdat(lattice,pflag,nmax)
-    # Create arrays to store energy, acceptance ratio and order parameter
+
     energy = np.zeros(nsteps+1,dtype=np.dtype)
     ratio = np.zeros(nsteps+1,dtype=np.dtype)
     order = np.zeros(nsteps+1,dtype=np.dtype)
-    # Set initial values in arrays
+
     energy[0] = all_energy(lattice,nmax)
     ratio[0] = 0.5 # ideal value
     order[0] = get_order(lattice,nmax)
 
-    # Begin doing and timing some MC steps.
     initial = time.time()
     for it in range(1,nsteps+1):
         ratio[it] = MC_step(lattice,temp,nmax)
@@ -289,9 +286,7 @@ def main(program, nsteps, nmax, temp, pflag):
     final = time.time()
     runtime = final-initial
     
-    # Final outputs
     print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,order[nsteps-1],runtime))
-    # Plot final frame of lattice and generate output file
     savedat(lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
     plotdat(lattice,pflag,nmax)
 #=======================================================================

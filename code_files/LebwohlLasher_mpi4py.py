@@ -222,7 +222,7 @@ def main(program, nsteps, nmax, temp):
     # outputting data on 'master' rank
     if rank == 0:
         print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,order[nsteps-1],runtime))
-        savedat(lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
+        #savedat(lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
 #=======================================================================
 # Main part of program, getting command line arguments and calling
 # main simulation function.
