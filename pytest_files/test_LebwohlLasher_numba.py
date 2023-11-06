@@ -1,9 +1,11 @@
-import pytest
+"""
+Script to test function outputs from LebwohlLasher_numba
+Numerical function outputs are given a 10% tolerance as some methods sacrifice precision for speed
+
+"""
 from pytest import approx
 import numpy as np
-import tempfile
-import os
-import glob
+
 from ..code_files.LebwohlLasher_numba import initdat, savedat, one_energy, all_energy, get_order, MC_step
 
 def test_initdat():

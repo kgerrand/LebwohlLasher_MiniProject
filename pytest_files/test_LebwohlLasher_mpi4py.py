@@ -38,7 +38,6 @@ def test_all_energy():
     arr = np.random.random_sample((nmax, nmax))*2.0*np.pi
     
     # testing function output against calculated true value
-    # this is not the same as the original code - slight reduction in precision using numpy vectorisation
     enall = all_energy(arr, nmax)
     assert enall == approx(-2566.273312501283, rel=0.1)
 

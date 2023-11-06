@@ -1,10 +1,12 @@
-import pytest
+"""
+Script to test function outputs from LebwohlLasher_numba_parallel
+Numerical function outputs are given a 10% tolerance as some methods sacrifice precision for speed
+
+"""
 from pytest import approx
 import numpy as np
-import tempfile
-import os
-import glob
-from ..code_files.LebwohlLasher_numba_parallel import initdat, savedat, one_energy, all_energy, get_order, MC_step
+
+from ..code_files.LebwohlLasher_numba_parallel import initdat, one_energy, all_energy, get_order, MC_step
 
 def test_initdat():
     # testing using an arbitrary side length of 10

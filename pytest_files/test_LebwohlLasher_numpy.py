@@ -1,10 +1,12 @@
-import pytest
+"""
+Script to test function outputs from LebwohlLasher_numpy
+Numerical function outputs are given a 10% tolerance as some methods sacrifice precision for speed
+
+"""
 from pytest import approx
 import numpy as np
-import tempfile
-import os
-import glob
-from ..code_files.LebwohlLasher_numpy import initdat, savedat, one_energy, all_energy, get_order, MC_step
+
+from ..code_files.LebwohlLasher_numpy import initdat, one_energy, all_energy, get_order, MC_step
 
 def test_initdat():
     # testing using an arbitrary side length of 10
@@ -36,7 +38,6 @@ def test_all_energy():
     arr = np.random.random_sample((nmax, nmax))*2.0*np.pi
     
     # testing function output against calculated true value
-    # this is not the same as the original code - slight reduction in precision using numpy vectorisation
     enall = all_energy(arr, nmax)
     assert enall == approx(-2566.273312501283, rel=0.1)
 
