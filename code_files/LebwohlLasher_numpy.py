@@ -215,41 +215,36 @@ def MC_step(arr,Ts,nmax):
 	Returns:
 	  accept/(nmax**2) (float) = acceptance ratio for current MCS.
     """
-    #
-    # Pre-compute some random numbers.  This is faster than
-    # using lots of individual calls.  "scale" sets the width
-    # of the distribution for the angle changes - increases
-    # with temperature.
     scale = 0.1 + Ts
+    accept = 0 
 
-    xran = np.random.randint(0, high=nmax, size=(nmax, nmax))
-    yran = np.random.randint(0, high=nmax, size=(nmax, nmax))
-    aran = np.random.normal(scale=scale, size=(nmax, nmax))
+    # creating a 1D array with the lattice sites
+    site_indices = np.arange(nmax * nmax)
 
-    acceptances = np.zeros((nmax, nmax), dtype=bool)
+    # looping through lattice sites in order (serial)
+    for site_index in site_indices:
+        # converting back to 2D
+        ix = site_index // nmax
+        iy = site_index % nmax
 
-    for i in range(nmax):
-        for j in range(nmax):
-            ix = xran[i, j]
-            iy = yran[i, j]
-            ang = aran[i, j]
-            en0 = one_energy(arr, ix, iy, nmax)
-           
-            arr_proposed = arr.copy()
-            arr_proposed[ix, iy] += ang
+        # generating random angle for site
+        ang = np.random.normal(scale=scale)
 
-            en1 = one_energy(arr_proposed, ix, iy, nmax)
+        en0 = one_energy(arr, ix, iy, nmax)
+        arr[ix, iy] += ang
+        en1 = one_energy(arr, ix, iy, nmax)
 
-            mask_accept = en1 <= en0
+        if en1 <= en0:
+            accept += 1
+        else:
             boltz = np.exp(-(en1 - en0) / Ts)
-            random_number = np.random.uniform(0, 1)
 
-            acceptances[i, j] = mask_accept or (boltz >= random_number)
+            if boltz >= np.random.uniform(0.0, 1.0):
+                accept += 1
+            else:
+                arr[ix, iy] -= ang
 
-            if acceptances[i, j]:
-                arr[ix, iy] = arr_proposed[ix, iy]
-
-    acceptance_ratio = np.sum(acceptances) / (nmax * nmax)
+    acceptance_ratio = accept/(nmax*nmax)
 
     return acceptance_ratio
 #=======================================================================
@@ -266,6 +261,7 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
+    np.random.seed(42)
     lattice = initdat(nmax)
 
     plotdat(lattice,pflag,nmax)
@@ -275,7 +271,7 @@ def main(program, nsteps, nmax, temp, pflag):
     order = np.zeros(nsteps+1,dtype=np.dtype)
 
     energy[0] = all_energy(lattice,nmax)
-    ratio[0] = 0.5 # ideal value
+    ratio[0] = 0.5
     order[0] = get_order(lattice,nmax)
 
     initial = time.time()
