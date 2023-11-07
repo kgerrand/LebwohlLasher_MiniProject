@@ -221,7 +221,10 @@ def MC_step(arr,Ts,nmax):
     # creating a 1D array with the lattice sites
     site_indices = np.arange(nmax * nmax)
 
-    # looping through lattice sites in order (serial)
+    # randomising order of lattice sites for random sampling (if commented out - serial sampling)
+    # np.random.shuffle(site_indices)
+
+    # looping through lattice sites
     for site_index in site_indices:
         # converting back to 2D
         ix = site_index // nmax
